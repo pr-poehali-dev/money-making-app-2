@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 
 type Tab = 'chats' | 'market';
@@ -55,9 +55,42 @@ const BOTS: Bot[] = [
   { id: 4, name: 'CRM Связь', desc: 'Синхронизация чатов с вашей CRM-системой', icon: 'Database', users: '5.3K', price: '1490 ₽/мес', tag: 'Интеграции' },
 ];
 
+const REPLIES = [
+  'Принято! 👍',
+  'Отличная мысль 🔥',
+  'Сейчас посмотрю и отвечу',
+  'Спасибо, что написали 🙌',
+  'Договорились! 🚀',
+];
+
 const Index = () => {
   const [tab, setTab] = useState<Tab>('chats');
   const [activeChat, setActiveChat] = useState(CHATS[0]);
+  const [messages, setMessages] = useState<Message[]>(MESSAGES);
+  const [draft, setDraft] = useState('');
+  const [typing, setTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const nowTime = () =>
+    new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+  const sendMessage = () => {
+    const text = draft.trim();
+    if (!text) return;
+    const mine: Message = { id: Date.now(), text, mine: true, time: nowTime() };
+    setMessages((prev) => [...prev, mine]);
+    setDraft('');
+    setTyping(true);
+    setTimeout(() => {
+      const reply = REPLIES[Math.floor(Math.random() * REPLIES.length)];
+      setMessages((prev) => [...prev, { id: Date.now() + 1, text: reply, mine: false, time: nowTime() }]);
+      setTyping(false);
+    }, 1600);
+  };
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, typing]);
 
   return (
     <div className="h-screen w-full overflow-hidden bg-background text-foreground flex flex-col relative">
@@ -162,11 +195,10 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-3">
-              {MESSAGES.map((m, i) => (
+            <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-3">
+              {messages.map((m) => (
                 <div
                   key={m.id}
-                  style={{ animationDelay: `${i * 120}ms` }}
                   className={`flex ${m.mine ? 'justify-end animate-msg-in-right' : 'justify-start animate-msg-in-left'}`}
                 >
                   <div className={`max-w-[70%] px-4 py-2.5 text-sm leading-relaxed ${m.mine
@@ -178,13 +210,15 @@ const Index = () => {
                   </div>
                 </div>
               ))}
-              <div className="flex justify-start animate-msg-in-left" style={{ animationDelay: '500ms' }}>
-                <div className="bg-secondary rounded-3xl rounded-bl-md px-4 py-3 flex items-center gap-1">
-                  {[0, 1, 2].map((d) => (
-                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-typing-dot" style={{ animationDelay: `${d * 0.2}s` }} />
-                  ))}
+              {typing && (
+                <div className="flex justify-start animate-msg-in-left">
+                  <div className="bg-secondary rounded-3xl rounded-bl-md px-4 py-3 flex items-center gap-1">
+                    {[0, 1, 2].map((d) => (
+                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-typing-dot" style={{ animationDelay: `${d * 0.2}s` }} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="p-4 border-t border-border glass">
@@ -193,10 +227,16 @@ const Index = () => {
                   <Icon name="Paperclip" size={19} />
                 </button>
                 <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                   placeholder="Написать сообщение..."
                   className="flex-1 h-11 px-4 rounded-2xl bg-secondary/60 border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <button className="w-11 h-11 rounded-2xl gradient-brand-anim animate-gradient-shift flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-transform shrink-0">
+                <button
+                  onClick={sendMessage}
+                  className="w-11 h-11 rounded-2xl gradient-brand-anim animate-gradient-shift flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-transform shrink-0"
+                >
                   <Icon name="Send" size={18} className="text-white" />
                 </button>
               </div>
